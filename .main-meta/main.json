@@ -19,12 +19,12 @@
             }
         ],
         "dfp": {
-            "name": "",
-            "semverRange": ""
+            "name": "PIC18F-Q_DFP",
+            "semverRange": "^1.12.193"
         },
         "configurator": {
-            "name": "",
-            "semverRange": ""
+            "name": "MCC",
+            "semverRange": ">=4.2.3"
         },
         "device": {
             "metaDataVersion": "1.0.0",
@@ -37,9 +37,22 @@
             }
         },
         "author": "Aleksander Vangen",
-        "subcategories": [],
-        "peripherals": [],
-        "keywords": [],
+        "subcategories": [
+            [
+                "Peripherals",
+                "MSSP"
+            ]
+        ],
+        "peripherals": [
+            "MSSP"
+        ],
+        "keywords": [
+            "Getting Started",
+            "Serial Communication",
+            "MCC",
+            "Melody",
+            "Curiosity Nano"
+        ],
         "additionalData": {
             "longDescription": {
                 "metaDataVersion": "1.0.0",

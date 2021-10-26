@@ -2,44 +2,75 @@
 
 [![MCHP](images/microchip.png)](https://www.microchip.com)
 
-# Update the title for pic18f47q10-cnano-i2c-read-write-temp-sensor-mcc here
+# PIC18F47Q10 I2C Host Read Temperature Sensor
 
-<!-- This is where the introduction to the example goes, including mentioning the peripherals used -->
+## Objective
+This repository contains an example of bare-metal source code for I2C as described in [TB3281 - Getting Started with I2C Using MSSP on PIC18](http://ww1.microchip.com/downloads/en/Appnotes/Getting_Started_With_I2C_Using_MSSP_on%20PIC18_90003281A.pdf) document from Microchip. <!-- This link has to be updated, once the tech brief goes live! -->
+
+The PIC18F47Q10 configured in I2C Host Mode using the MSSP1 peripheral and performing write operations. This example will use the client [MCP9800](https://ww1.microchip.com/downloads/en/devicedoc/21909d.pdf), an 9-12 bit temperature sensor, addressed in 7-bit mode.
 
 ## Related Documentation
 
-<!-- Any information about an application note or tech brief can be linked here. Use unbreakable links!
-     In addition a link to the device family landing page and relevant peripheral pages as well:
-     - [AN3381 - Brushless DC Fan Speed Control Using Temperature Input and Tachometer Feedback](https://microchip.com/00003381/)
-     - [PIC18F-Q10 Family Product Page](https://www.microchip.com/design-centers/8-bit/pic-mcus/device-selection/pic18f-q10-product-family) -->
+- [TB3281 - Getting Started with I2C Using MSSP on PIC18](http://ww1.microchip.com/downloads/en/Appnotes/Getting_Started_With_I2C_Using_MSSP_on%20PIC18_90003281A.pdf) <!-- This link has to be updated, once the tech brief goes live! -->
+- [PIC18-Q10 Product Family Page](https://www.microchip.com/design-centers/8-bit/pic-mcus/device-selection/pic18f-q10-product-family)
+- [PIC18F47Q10 Data Sheet](http://ww1.microchip.com/downloads/en/DeviceDoc/40002043D.pdf)
+- [MCP9800 - 2-Wire High-Accuracy Temperature Sensor](https://ww1.microchip.com/downloads/en/devicedoc/21909d.pdf)
+- [PIC18F47Q10 Code Examples on GitHub](https://github.com/microchip-pic-avr-examples?q=pic18f47q10-cnano&type=&language=)
 
 ## Software Used
 
-<!-- All software used in this example must be listed here. Use unbreakable links!
-     - MPLAB® X IDE 5.30 or newer [(microchip.com/mplab/mplab-x-ide)](http://www.microchip.com/mplab/mplab-x-ide)
-     - MPLAB® XC8 2.10 or a newer compiler [(microchip.com/mplab/compilers)](http://www.microchip.com/mplab/compilers)
-     - MPLAB® Code Configurator (MCC) 3.95.0 or newer [(microchip.com/mplab/mplab-code-configurator)](https://www.microchip.com/mplab/mplab-code-configurator)
-     - MPLAB® Code Configurator (MCC) Device Libraries PIC10 / PIC12 / PIC16 / PIC18 MCUs [(microchip.com/mplab/mplab-code-configurator)](https://www.microchip.com/mplab/mplab-code-configurator)
-     - Microchip PIC18F-Q Series Device Support (1.4.109) or newer [(packs.download.microchip.com/)](https://packs.download.microchip.com/) -->
-
-- MPLAB� X IDE 5.50.0 or newer [(MPLAB� X IDE 5.50)](https://www.microchip.com/en-us/development-tools-tools-and-software/mplab-x-ide?utm_source=GitHub&utm_medium=TextLink&utm_campaign=MCU8_MMTCha_MPAE_Examples&utm_content=pic18f47q10-cnano-i2c-read-write-temp-sensor-mcc-github)
-- MPLAB� XC8 2.31.0 or newer compiler [(MPLAB� XC8 2.31)](https://www.microchip.com/en-us/development-tools-tools-and-software/mplab-xc-compilers?utm_source=GitHub&utm_medium=TextLink&utm_campaign=MCU8_MMTCha_MPAE_Examples&utm_content=pic18f47q10-cnano-i2c-read-write-temp-sensor-mcc-github)
+- MPLAB� X IDE 5.50.0 or newer [(MPLAB� X IDE 5.50)](https://www.microchip.com/en-us/development-tools-tools-and-software/mplab-x-ide?utm_source=GitHub&utm_medium=TextLink&utm_campaign=MCU8_MMTCha_MPAE_Examples&utm_content=pic18f47q10-cnano-i2c-write-dac-mcc-github)
+- MPLAB� XC8 2.31.0 or newer compiler [(MPLAB� XC8 2.31)](https://www.microchip.com/en-us/development-tools-tools-and-software/mplab-xc-compilers?utm_source=GitHub&utm_medium=TextLink&utm_campaign=MCU8_MMTCha_MPAE_Examples&utm_content=pic18f47q10-cnano-i2c-write-dac-mcc-github)
+- MPLAB® Code Configurator (MCC Melody) 4.2.3 or newer [(microchip.com/mplab/mplab-code-configurator)](https://www.microchip.com/mplab/mplab-code-configurator)
+- MPLAB® Code Configurator (MCC) Device Libraries PIC10 / PIC12 / PIC16 / PIC18 MCUs 1.84.5 or newer [(microchip.com/mplab/mplab-code-configurator)](https://www.microchip.com/mplab/mplab-code-configurator)
+- Microchip PIC18F-Q Series Device Support 1.12.193 or newer [(packs.download.microchip.com/)](https://packs.download.microchip.com/)
+- [MPLAB Data Visualizer Plugin](https://www.microchip.com/en-us/development-tools-tools-and-software/embedded-software-center/mplab-data-visualizer?utm_source=GitHub&utm_medium=TextLink&utm_campaign=MCU8_MMTCha_pic18q41&utm_content=pic18f16q41-adcc-temp-sensor-mplab-mcc-github) or other serial terminal
 
 ## Hardware Used
 
-<!-- All hardware used in this example must be listed here. Use unbreakable links!
-     - PIC18F47Q10 Curiosity Nano [(DM182029)](https://www.microchip.com/Developmenttools/ProductDetails/DM182029)
-     - Curiosity Nano Base for Click boards™ [(AC164162)](https://www.microchip.com/Developmenttools/ProductDetails/AC164162)
-     - POT Click board™ [(MIKROE-3402)](https://www.mikroe.com/pot-click) -->
+- Curiosity Nano Base for Click Boards™ [(AC164162)](https://www.microchip.com/Developmenttools/ProductDetails/AC164162)
+- PIC18F47Q10 Curiosity Nano [(DM182029)](https://www.microchip.com/Developmenttools/ProductDetails/DM182029)
+- PICkit™ Serial I2C™ Demo Board [(PKSERIAL-I2C1)](https://www.microchip.com/DevelopmentTools/ProductDetails/PKSERIAL-I2C1)
 
 ## Setup
 
-<!-- Explain how to connect hardware and set up software. Depending on complexity, step-by-step instructions and/or tables and/or images can be used -->
+The PIC18F47Q10 Curiosity Nano Development Board is used as the test platform.
+
+<br><img src="images/PIC18F47Q10_CNANO.png" width="600">
+
+The following configurations will be made for this project:
+- Clock
+	- Oscillator Select: HFINTOSC
+	- HF Internal Clock: 4 MHz
+	- Clock Divider: 1
+- MSSP1
+	- Serial Protocol: I2C
+    - Mode: Host
+    - I2C Clock Frequency: 100000
+- Watchdog Timer: disabled
+- Low-voltage Programming: disabled
+
+|Pin           | Configuration      |
+| :----------: | :----------------: |
+|RB1 (SCL1)    | With Pull Up       |
+|RB2 (SDA1)    | With Pull Up       |
 
 ## Operation
 
-<!-- Explain how to operate the example. Depending on complexity, step-by-step instructions and/or tables and/or images can be used -->
+1. Connect the board to the PC.
 
+2. Open the *pic18f47q10-cnano-i2c-read-write-temp-sensor-mcc.X* project in MPLAB® X IDE.
+
+3. Configure the project properties:
+    - Right click on the project and click *Properties*
+    - Select the device pack in the *Packs* tab
+    - Select the *PIC18F47Q10 Curiosity Nano* (click on the SN) in the *Hardware Tool* tab
+    - Select the compiler version in the *Compiler Toolchain* tab
+    - Click *OK* to save the changes
+    
+<br><img src="images/properties.png" width="600">
+
+4. Program the project to the board: right click on the project and click *Make and Program Device*
 ## Summary
 
-<!-- Summarize what the example has shown -->
+This project is an illustration for a basic use case for writing to a DAC using MSSP1 and MCC Melody. 
