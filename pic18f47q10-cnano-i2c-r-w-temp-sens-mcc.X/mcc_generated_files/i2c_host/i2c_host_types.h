@@ -1,25 +1,14 @@
 /**
-  I2C Generated Driver API Header File
-
-  @Company
-    Microchip Technology Inc.
-
-  @File Name
-    i2c_host_types.h
-
-  @Summary
-    This is the generated driver types header file for the I2C driver.
-
-  @Description
-    This file provides common enumerations for I2C driver.
-    Generation Information :
-        Product Revision  :   - 
-        Device            :  
-        Driver Version    :  1.0.0
-    The generated drivers are tested against the following:
-        Compiler          :  XC8 v2.30 and above
-        MPLAB             :  MPLABX v5.45 and above
-*/
+ * I2C Generated Driver Types Header File
+ *
+ * @file i2c_host_types.h
+ *
+ * @ingroup i2c_host_interface
+ *
+ * @brief This file contains other data types for I2C module.
+ *
+ * @version I2C Driver Version 2.0.0
+ */
 
 /*
 © [2021] Microchip Technology Inc. and its subsidiaries.
@@ -46,29 +35,26 @@
 #define	I2C_HOST_TYPES_H
 
 /**
-  I2C_ERROR Enumeration
- 
-  @Description
-    I2C ERROR code
-     
-*/
-enum I2C_ERROR
+ * @ingroup i2c_host_interface
+ * @enum  i2c_host_error_t
+ * @brief Enumeration for I2C errors
+ */
+typedef enum
 {
-    I2C_ERROR_NONE,             /* No Error */
-    I2C_ERROR_NACK,             /* Client returned NACK */
-    I2C_ERROR_BUS_COLLISION,    /* Bus Collision Error */
-};
+    I2C_ERROR_NONE,             /**< No Error */
+    I2C_ERROR_ADDR_NACK,        /**< Client returned Address NACK */
+    I2C_ERROR_DATA_NACK,        /**< Client returned Data NACK */
+    I2C_ERROR_BUS_COLLISION,    /**< Bus Collision Error */
+} i2c_host_error_t;
 
 /**
-  I2C_TRANSFER_SETUP structure
- 
-  @Description
-    I2C Clock Speed (100KHZ to 1MHZ)
-     
-*/
-struct I2C_TRANSFER_SETUP
+ * @ingroup i2c_host_interface
+ * @struct i2c_host_transfer_setup_t
+ * @brief Structure for i2c clock change
+ */
+typedef struct
 {
-  uint32_t clkSpeed;            // I2C Clock Speed
-};
+  uint32_t clkSpeed;            /**< I2C Clock Speed */
+} i2c_host_transfer_setup_t;
 
 #endif // end of I2C_HOST_TYPES_H

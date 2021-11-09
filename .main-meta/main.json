@@ -15,7 +15,7 @@
         "compiler": [
             {
                 "name": "XC8",
-                "semverRange": "^2.31.0"
+                "semverRange": "^2.32.0"
             }
         ],
         "dfp": {
@@ -24,7 +24,7 @@
         },
         "configurator": {
             "name": "MCC",
-            "semverRange": ">=4.2.3"
+            "semverRange": ">=5.0.3"
         },
         "device": {
             "metaDataVersion": "1.0.0",

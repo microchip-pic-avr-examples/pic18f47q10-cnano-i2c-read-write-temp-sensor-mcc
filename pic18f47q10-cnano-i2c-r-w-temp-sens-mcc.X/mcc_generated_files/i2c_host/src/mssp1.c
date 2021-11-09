@@ -1,25 +1,14 @@
 /**
-  I2C1 Generated Driver File
-
-  @Company
-    Microchip Technology Inc.
-
-  @File Name
-    mssp1.c
-
-  @Summary
-    This is the generated driver implementation file for the I2C1 driver.
-
-  @Description
-    This source file provides common enumerations for I2C1 driver
-    Generation Information :
-        Product Revision  :   - 
-        Device            :  
-        Driver Version    :  1.0.2
-    The generated drivers are tested against the following:
-        Compiler          :  XC8 v2.30 and above
-        MPLAB             :  MPLABX v5.45 and above
-*/
+ * MSSP1 Generated Driver File
+ *
+ * @file mssp1.c
+ *
+ * @ingroup i2c1_host
+ *
+ * @brief This file contains the driver code for I2C1 module.
+ *
+ * @version I2C1 Driver Version 2.0.0
+ */
 
 /*
 © [2021] Microchip Technology Inc. and its subsidiaries.
@@ -45,713 +34,453 @@
 #include <xc.h>
 #include "../mssp1.h"
 
-/**
+/* I2C1 event system interfaces */
+static void I2C1_ReadStart(void);
+static void I2C1_WriteStart(void);
+static void I2C1_Close(void);
+static void I2C1_EventHandler(void);
+static void I2C1_ErrorEventHandler(void);
+static void I2C1_DefaultCallback(void);
+
+/* I2C1 Interfaces */
+static uint8_t I2C1_DataReceive(void);
+static void I2C1_DataTransmit(uint8_t data);
+static inline void I2C1_BusReset(void);
+static inline void I2C1_ReceiveEnable(void);
+static inline void I2C1_RestartEnable(void);
+static inline void I2C1_RestartDisable(void);
+static inline void I2C1_StartSend(void);
+static inline void I2C1_StopSend(void);
+static inline void I2C1_AckSend(void);
+static inline void I2C1_NackSend(void);
+static bool I2C1_IsNack(void);
+static bool I2C1_IsData(void);
+static bool I2C1_IsAddr(void);
+static bool I2C1_IsRxBufFull(void);
+static inline void I2C1_InterruptClear(void);
+static inline void I2C1_ErrorInterruptClear(void);
+static inline void I2C1_StatusFlagsClear(void);
+
+static i2c_host_event_states_t I2C1_EVENT_IDLE(void);
+static i2c_host_event_states_t I2C1_EVENT_SEND_RD_ADDR(void);
+static i2c_host_event_states_t I2C1_EVENT_SEND_WR_ADDR(void);
+static i2c_host_event_states_t I2C1_EVENT_TX(void);
+static i2c_host_event_states_t I2C1_EVENT_RX(void);
+static i2c_host_event_states_t I2C1_EVENT_NACK(void);
+static i2c_host_event_states_t I2C1_EVENT_ERROR(void);
+static i2c_host_event_states_t I2C1_EVENT_STOP(void);
+static i2c_host_event_states_t I2C1_EVENT_RESET(void);
+
+/*
   Section: Driver Interface
-*/
-const struct I2C_HOST_INTERFACE i2c1_host_Interface = {
-  .Initialize = I2C1_Initialize,
-  .Write = I2C1_Write,
-  .Read = I2C1_Read,
-  .WriteRead = I2C1_WriteRead,
-  .TransferSetup = NULL,
-  .ErrorGet = I2C1_ErrorGet,
-  .IsBusy = I2C1_IsBusy,
-  .CallbackRegister = I2C1_CallbackRegister
+ */
+const i2c_host_interface_t i2c1_host_interface = {
+    .Initialize = I2C1_Initialize,
+    .Deinitialize = I2C1_Deinitialize,
+    .Write = I2C1_Write,
+    .Read = I2C1_Read,
+    .WriteRead = I2C1_WriteRead,
+    .TransferSetup = NULL,
+    .ErrorGet = I2C1_ErrorGet,
+    .IsBusy = I2C1_IsBusy,
+    .CallbackRegister = I2C1_CallbackRegister,
+    .Tasks = I2C1_Tasks
 };
 
-// I2C1 STATES
-typedef enum 
-{
-    I2C1_IDLE = 0,
-    I2C1_SEND_ADR_READ,
-    I2C1_SEND_ADR_WRITE,
-    I2C1_TX,
-    I2C1_RX,
-    I2C1_RCEN,
-    I2C1_TX_EMPTY,      
-    I2C1_SEND_RESTART_READ,
-    I2C1_SEND_RESTART_WRITE,
-    I2C1_SEND_RESTART,
-    I2C1_SEND_STOP,
-    I2C1_RX_ACK,
-    I2C1_RX_NACK_STOP,
-    I2C1_RX_NACK_RESTART,
-    I2C1_RESET,
-    I2C1_ADDRESS_NACK,
+/*
+ Section: Private Variable Definitions
+ */
+static void (*I2C1_Callback)(void) = NULL;
+volatile i2c_host_event_status_t i2c1Status = {0};
 
-} i2c1_fsm_states_t;
-
-// I2C1 Event callBack List
-typedef enum 
-{
-    I2C1_DATA_COMPLETE = 0,
-    I2C1_WRITE_COLLISION,
-    I2C1_ADDR_NACK,
-    I2C1_DATA_NACK,
-    I2C1_TIMEOUT,
-    I2C1_NULL
-} i2c1_callbackIndex_t;
-
-typedef struct
-{
-    size_t len;
-    uint8_t *data;
-} i2c1_buffer_t;
-
-static  i2c1_operations_t rdBlkRegCompleteHandler(void *ptr);
-
-// I2C1 Status Structure
-typedef struct
-{
-    i2c1_callback_t callbackTable[6];
-    void *callbackPayload[6];           //  each callBack can have a payload
-    uint16_t time_out;                  // I2C1 Timeout Counter between I2C1 Events.
-    uint16_t time_out_value;            // Reload value for the timeouts
-    i2c1_address_t address;             // The I2C1 Address
-    uint8_t *data_ptr;                  // pointer to a data buffer
-    size_t data_length;                 // Bytes in the data buffer
-    i2c1_fsm_states_t state;            // Driver State
-    i2c1_error_t error;
-    unsigned addressNackCheck:1;
-    unsigned busy:1;
-    unsigned inUse:1;
-    unsigned bufferFree:1;
-
-} i2c1_status_t;
-
-static void I2C1_SetCallback(i2c1_callbackIndex_t idx, i2c1_callback_t cb, void *ptr);
-static void I2C1_Poller(void);
-static inline void I2C1_HostFsm(void);
-
-/* I2C1 interfaces */
-static inline bool I2C1_HostOpen(void);
-static inline void I2C1_HostClose(void);
-static inline uint8_t I2C1_HostGetRxData(void);
-static inline void I2C1_HostSendTxData(uint8_t data);
-static inline void I2C1_HostEnableRestart(void);
-static inline void I2C1_HostDisableRestart(void);
-static inline void I2C1_HostStartRx(void);
-static inline void I2C1_HostStart(void);
-static inline void I2C1_HostStop(void);
-static inline bool I2C1_HostIsNack(void);
-static inline void I2C1_HostSendAck(void);
-static inline void I2C1_HostSendNack(void);
-static inline void I2C1_HostClearBusCollision(void);
-static inline bool I2C1_HostIsRxBufFull(void);
-
-/* Interrupt interfaces */
-static inline void I2C1_HostEnableIrq(void);
-static inline bool I2C1_HostIsIrqEnabled(void);
-static inline void I2C1_HostDisableIrq(void);
-static inline void I2C1_HostClearIrq(void);
-static inline void I2C1_HostSetIrq(void);
-static inline void I2C1_HostWaitForEvent(void);
-
-static i2c1_fsm_states_t I2C1_DO_IDLE(void);
-static i2c1_fsm_states_t I2C1_DO_SEND_ADR_READ(void);
-static i2c1_fsm_states_t I2C1_DO_SEND_ADR_WRITE(void);
-static i2c1_fsm_states_t I2C1_DO_TX(void);
-static i2c1_fsm_states_t I2C1_DO_RX(void);
-static i2c1_fsm_states_t I2C1_DO_RCEN(void);
-static i2c1_fsm_states_t I2C1_DO_TX_EMPTY(void);
-static i2c1_fsm_states_t I2C1_DO_SEND_RESTART_READ(void);
-static i2c1_fsm_states_t I2C1_DO_SEND_RESTART_WRITE(void);
-static i2c1_fsm_states_t I2C1_DO_SEND_RESTART(void);
-static i2c1_fsm_states_t I2C1_DO_SEND_STOP(void);
-static i2c1_fsm_states_t I2C1_DO_RX_ACK(void);
-static i2c1_fsm_states_t I2C1_DO_RX_NACK_STOP(void);
-static i2c1_fsm_states_t I2C1_DO_RX_NACK_RESTART(void);
-static i2c1_fsm_states_t I2C1_DO_RESET(void);
-static i2c1_fsm_states_t I2C1_DO_ADDRESS_NACK(void);
-
-typedef i2c1_fsm_states_t (*fsmHandlerFunction)(void);
-const fsmHandlerFunction fsmStateTable[] = 
-{
-    I2C1_DO_IDLE,
-    I2C1_DO_SEND_ADR_READ,
-    I2C1_DO_SEND_ADR_WRITE,
-    I2C1_DO_TX,
-    I2C1_DO_RX,
-    I2C1_DO_RCEN,
-    I2C1_DO_TX_EMPTY,
-    I2C1_DO_SEND_RESTART_READ,
-    I2C1_DO_SEND_RESTART_WRITE,
-    I2C1_DO_SEND_RESTART,
-    I2C1_DO_SEND_STOP,
-    I2C1_DO_RX_ACK,
-    I2C1_DO_RX_NACK_STOP,
-    I2C1_DO_RX_NACK_RESTART,
-    I2C1_DO_RESET,
-    I2C1_DO_ADDRESS_NACK,
+typedef i2c_host_event_states_t (*i2c1eventHandler)(void);
+const i2c1eventHandler i2c1_eventTable[] = {
+    I2C1_EVENT_IDLE,
+    I2C1_EVENT_SEND_RD_ADDR,
+    I2C1_EVENT_SEND_WR_ADDR,
+    I2C1_EVENT_TX,
+    I2C1_EVENT_RX,
+    I2C1_EVENT_NACK,
+    I2C1_EVENT_ERROR,
+    I2C1_EVENT_STOP,
+    I2C1_EVENT_RESET
 };
 
 /**
- Section: Private Variable Definitions
-*/
-static void (*I2C1_InterruptHandler)(void) = NULL;
-i2c1_status_t I2C1_Status = {0};
-enum I2C_ERROR i2c1ErrorState = I2C_ERROR_NONE;
-
-
-i2c1_error_t I2C1_Open(i2c1_address_t address)
+ Section: Public Interfaces
+ */
+void I2C1_Initialize(void)
 {
-    i2c1_error_t returnValue = I2C1_BUSY;
-    
-    if(!I2C1_Status.inUse)
-    {
-        I2C1_Status.address = address;
-        I2C1_Status.busy = 0;
-        I2C1_Status.inUse = 1;
-        I2C1_Status.addressNackCheck = 0;
-        I2C1_Status.state = I2C1_RESET;
-        I2C1_Status.time_out_value = 500; // MCC should determine a reasonable starting value here.
-        I2C1_Status.bufferFree = 1;
-
-        // set all the call backs to a default of sending stop
-        I2C1_Status.callbackTable[I2C1_DATA_COMPLETE]=I2C1_CallbackReturnStop;
-        I2C1_Status.callbackPayload[I2C1_DATA_COMPLETE] = NULL;
-        I2C1_Status.callbackTable[I2C1_WRITE_COLLISION]=I2C1_CallbackReturnStop;
-        I2C1_Status.callbackPayload[I2C1_WRITE_COLLISION] = NULL;
-        I2C1_Status.callbackTable[I2C1_ADDR_NACK]=I2C1_CallbackReturnStop;
-        I2C1_Status.callbackPayload[I2C1_ADDR_NACK] = NULL;
-        I2C1_Status.callbackTable[I2C1_DATA_NACK]=I2C1_CallbackReturnStop;
-        I2C1_Status.callbackPayload[I2C1_DATA_NACK] = NULL;
-        I2C1_Status.callbackTable[I2C1_TIMEOUT]=I2C1_CallbackReturnReset;
-        I2C1_Status.callbackPayload[I2C1_TIMEOUT] = NULL;
-        
-        I2C1_HostClearIrq();
-        I2C1_HostOpen();
-        i2c1ErrorState = I2C_ERROR_NONE;
-
-        returnValue = I2C1_NOERR;
-    }
-    return returnValue;
+    /* CKE disabled; SMP Standard Speed;  */
+    SSP1STAT = 0x80;
+    /* SSPM FOSC/4_SSPxADD_I2C; CKP disabled; SSPEN disabled;  */
+    SSP1CON1 = 0x8;
+    /* SEN disabled; RSEN disabled; PEN disabled; RCEN disabled; ACKEN disabled; ACKDT acknowledge; GCEN disabled;  */
+    SSP1CON2 = 0x0;
+    /* DHEN disabled; AHEN disabled; SBCDE disabled; SDAHT 100ns; BOEN disabled; SCIE disabled; PCIE disabled;  */
+    SSP1CON3 = 0x0;
+    /* SSPADD 159;  */
+    SSP1ADD = 0x9F;
+    I2C1_CallbackRegister(I2C1_DefaultCallback);
+    SSP1CON1bits.SSPEN = 1;
 }
 
-i2c1_error_t I2C1_Close(void)
+void I2C1_Deinitialize(void)
 {
-    i2c1_error_t returnValue = I2C1_BUSY;
-    if(!I2C1_Status.busy)
-    {
-        I2C1_Status.inUse = 0;
-        I2C1_Status.address = 0xff;
-        I2C1_HostClearIrq();
-        I2C1_HostDisableIrq();
-        I2C1_HostClose();
-        returnValue = I2C1_Status.error;
-    }
-    return returnValue;
+    SSP1STAT = 0x00;
+    SSP1CON1 = 0x00;
+    SSP1CON2 = 0x00;
+    SSP1CON3 = 0x00;
+    SSP1ADD = 0x00;
+    I2C1_CallbackRegister(I2C1_DefaultCallback);
 }
 
-i2c1_error_t I2C1_HostOperation(bool read)
+bool I2C1_Write(uint16_t address, uint8_t *data, size_t dataLength)
 {
-    i2c1_error_t returnValue = I2C1_BUSY;
-    if(!I2C1_Status.busy)
+    bool retStatus = false;
+    if (!I2C1_IsBusy())
     {
-        I2C1_Status.busy = true;
-        returnValue = I2C1_NOERR;
+        i2c1Status.busy = true;
+        i2c1Status.address = address;
+        i2c1Status.switchToRead = false;
+        i2c1Status.writePtr = data;
+        i2c1Status.writeLength = dataLength;
+        i2c1Status.readPtr = NULL;
+        i2c1Status.readLength = 0;
+        i2c1Status.errorState = I2C_ERROR_NONE;
+        I2C1_WriteStart();
+        retStatus = true;
+    }
+    return retStatus;
+}
 
-        if(read)
+bool I2C1_Read(uint16_t address, uint8_t *data, size_t dataLength)
+{
+    bool retStatus = false;
+    if (!I2C1_IsBusy())
+    {
+        i2c1Status.busy = true;
+        i2c1Status.address = address;
+        i2c1Status.switchToRead = false;
+        i2c1Status.readPtr = data;
+        i2c1Status.readLength = dataLength;
+        i2c1Status.writePtr = NULL;
+        i2c1Status.writeLength = 0;
+        i2c1Status.errorState = I2C_ERROR_NONE;
+        I2C1_ReadStart();
+        retStatus = true;
+    }
+    return retStatus;
+}
+
+bool I2C1_WriteRead(uint16_t address, uint8_t *writeData, size_t writeLength, uint8_t *readData, size_t readLength)
+{
+    bool retStatus = false;
+    if (!I2C1_IsBusy())
+    {
+        i2c1Status.busy = true;
+        i2c1Status.address = address;
+        i2c1Status.switchToRead = true;
+        i2c1Status.writePtr = writeData;
+        i2c1Status.writeLength = writeLength;
+        i2c1Status.readPtr = readData;
+        i2c1Status.readLength = readLength;
+        i2c1Status.errorState = I2C_ERROR_NONE;
+        I2C1_WriteStart();
+        retStatus = true;
+    }
+    return retStatus;
+}
+
+i2c_host_error_t I2C1_ErrorGet(void)
+{
+    i2c_host_error_t retErrorState = i2c1Status.errorState;
+    i2c1Status.errorState = I2C_ERROR_NONE;
+    return retErrorState;
+}
+
+bool I2C1_IsBusy(void)
+{
+    return i2c1Status.busy || SSP1STATbits.S;
+}
+
+void I2C1_CallbackRegister(void (*callbackHandler)(void))
+{
+    if (callbackHandler != NULL)
+    {
+        I2C1_Callback = callbackHandler;
+    }
+}
+
+void I2C1_Tasks(void)
+{
+    if (PIR3bits.BCL1IF)
+    {
+        I2C1_ErrorEventHandler();
+    }
+    if (PIR3bits.SSP1IF)
+    {
+        if (PIR3bits.BCL1IF)
         {
-            I2C1_Status.state = I2C1_SEND_ADR_READ;
+            I2C1_ErrorEventHandler();
         }
         else
         {
-            I2C1_Status.state = I2C1_SEND_ADR_WRITE;
+            I2C1_EventHandler();
         }
-        I2C1_HostStart();
-        I2C1_Poller();
-    }
-    return returnValue;
-}
-
-i2c1_error_t I2C1_HostRead(void)
-{
-    return I2C1_HostOperation(true);
-}
-
-i2c1_error_t I2C1_HostWrite(void)
-{
-    return I2C1_HostOperation(false);
-}
-
-void I2C1_SetTimeout(uint8_t timeOutValue)
-{
-    I2C1_HostDisableIrq();
-    I2C1_Status.time_out_value = timeOutValue;
-    I2C1_HostEnableIrq();
-}
-
-void I2C1_SetBuffer(void *buffer, size_t bufferSize)
-{
-    if(I2C1_Status.bufferFree)
-    {
-        I2C1_Status.data_ptr = buffer;
-        I2C1_Status.data_length = bufferSize;
-        I2C1_Status.bufferFree = false;
     }
 }
 
-void I2C1_SetDataCompleteCallback(i2c1_callback_t cb, void *ptr)
+/*
+ Section: Private Interfaces
+ */
+static void I2C1_ReadStart(void)
 {
-    I2C1_SetCallback(I2C1_DATA_COMPLETE, cb, ptr);
+    I2C1_StartSend();
+    i2c1Status.state = I2C_STATE_SEND_RD_ADDR;
 }
 
-void I2C1_SetWriteCollisionCallback(i2c1_callback_t cb, void *ptr)
+static void I2C1_WriteStart(void)
 {
-    I2C1_SetCallback(I2C1_WRITE_COLLISION, cb, ptr);
+    I2C1_StartSend();
+    i2c1Status.state = I2C_STATE_SEND_WR_ADDR;
 }
 
-void I2C1_SetAddressNackCallback(i2c1_callback_t cb, void *ptr)
+static void I2C1_Close(void)
 {
-    I2C1_SetCallback(I2C1_ADDR_NACK, cb, ptr);
+    i2c1Status.busy = false;
+    i2c1Status.address = 0xFF;
+    i2c1Status.writePtr = NULL;
+    i2c1Status.readPtr = NULL;
+    i2c1Status.state = I2C_STATE_IDLE;
+    I2C1_InterruptClear();
+    I2C1_ErrorInterruptClear();
+    I2C1_StatusFlagsClear();
 }
 
-void I2C1_SetDataNackCallback(i2c1_callback_t cb, void *ptr)
+static void I2C1_EventHandler(void)
 {
-    I2C1_SetCallback(I2C1_DATA_NACK, cb, ptr);
-}
-
-void I2C1_SetTimeoutCallback(i2c1_callback_t cb, void *ptr)
-{
-    I2C1_SetCallback(I2C1_TIMEOUT, cb, ptr);
-}
-
-static void I2C1_SetCallback(i2c1_callbackIndex_t idx, i2c1_callback_t cb, void *ptr)
-{
-    if(cb)
+    I2C1_InterruptClear();
+    if (I2C1_IsAddr() && I2C1_IsNack())
     {
-        I2C1_Status.callbackTable[idx] = cb;
-        I2C1_Status.callbackPayload[idx] = ptr;
+        i2c1Status.state = I2C_STATE_NACK;
+        i2c1Status.errorState = I2C_ERROR_ADDR_NACK;
+    }
+    else if (I2C1_IsData() && I2C1_IsNack())
+    {
+        i2c1Status.state = I2C_STATE_NACK;
+        i2c1Status.errorState = I2C_ERROR_DATA_NACK;
+    }
+    i2c1Status.state = i2c1_eventTable[i2c1Status.state]();
+}
+
+static void I2C1_ErrorEventHandler(void)
+{
+    i2c1Status.state = I2C_STATE_ERROR;
+    i2c1Status.errorState = I2C_ERROR_BUS_COLLISION;
+    I2C1_ErrorInterruptClear();
+    i2c1Status.state = i2c1_eventTable[i2c1Status.state]();
+    I2C1_Callback();
+}
+
+static void I2C1_DefaultCallback(void)
+{
+    // Default Callback for Error Indication
+}
+
+/* I2C1 Event interfaces */
+static i2c_host_event_states_t I2C1_EVENT_IDLE(void)
+{
+    i2c1Status.busy = false;
+    return I2C_STATE_RESET;
+}
+
+static i2c_host_event_states_t I2C1_EVENT_SEND_RD_ADDR(void)
+{
+    I2C1_DataTransmit((uint8_t) (i2c1Status.address << 1 | 1));
+    return I2C_STATE_RX;
+}
+
+static i2c_host_event_states_t I2C1_EVENT_SEND_WR_ADDR(void)
+{
+    I2C1_DataTransmit((uint8_t) (i2c1Status.address << 1));
+    return I2C_STATE_TX;
+}
+
+static i2c_host_event_states_t I2C1_EVENT_TX(void)
+{
+    i2c_host_event_states_t retEventState = I2C_STATE_TX;
+    if (i2c1Status.writeLength)
+    {
+        i2c1Status.writeLength--;
+        I2C1_DataTransmit(*i2c1Status.writePtr++);
+        retEventState = I2C_STATE_TX;
     }
     else
     {
-        I2C1_Status.callbackTable[idx] = I2C1_CallbackReturnStop;
-        I2C1_Status.callbackPayload[idx] = NULL;
-    }
-}
-
-static void I2C1_Poller(void)
-{
-    while(I2C1_Status.busy)
-    {
-        I2C1_HostWaitForEvent();
-        I2C1_HostFsm();
-    }
-}
-
-static inline void I2C1_HostFsm(void)
-{
-    I2C1_HostClearIrq();
-
-    if(I2C1_Status.addressNackCheck && I2C1_HostIsNack())
-    {
-        I2C1_Status.state = I2C1_ADDRESS_NACK;
-    }
-    I2C1_Status.state = fsmStateTable[I2C1_Status.state]();
-}
-
-
-static i2c1_fsm_states_t I2C1_DO_IDLE(void)
-{
-    I2C1_Status.busy = false;
-    I2C1_Status.error = I2C1_NOERR;
-    return I2C1_RESET;
-}
-
-static i2c1_fsm_states_t I2C1_DO_SEND_ADR_READ(void)
-{
-    I2C1_Status.addressNackCheck = 1;
-    I2C1_HostSendTxData((uint8_t)(I2C1_Status.address << 1 | 1));
-    return I2C1_RCEN;
-}
-
-static i2c1_fsm_states_t I2C1_DO_SEND_ADR_WRITE(void)
-{
-    I2C1_Status.addressNackCheck = 1;
-    I2C1_HostSendTxData((uint8_t)(I2C1_Status.address << 1));
-    return I2C1_TX;
-}
-
-static i2c1_fsm_states_t I2C1_DO_TX(void)
-{
-    if(I2C1_HostIsNack())
-    {
-        switch(I2C1_Status.callbackTable[I2C1_DATA_NACK](I2C1_Status.callbackPayload[I2C1_DATA_NACK]))
+        if (i2c1Status.switchToRead)
         {
-            case I2C1_RESTART_READ:
-                return I2C1_DO_SEND_RESTART_READ();
-            case I2C1_RESTART_WRITE:
-                  return I2C1_DO_SEND_RESTART_WRITE();
-            default:
-            case I2C1_CONTINUE:
-            case I2C1_STOP:
-                return I2C1_DO_SEND_STOP();
+            i2c1Status.switchToRead = false;
+            I2C1_RestartEnable();
+            retEventState = I2C_STATE_SEND_RD_ADDR;
         }
-    }
-    else
-    {
-        I2C1_Status.addressNackCheck = 0;
-        I2C1_HostSendTxData(*I2C1_Status.data_ptr++);
-        return (--I2C1_Status.data_length)?I2C1_TX:I2C1_TX_EMPTY;
-    }
-}
-
-static i2c1_fsm_states_t I2C1_DO_RX(void)
-{
-    *I2C1_Status.data_ptr++ = I2C1_HostGetRxData();
-    if(--I2C1_Status.data_length)
-    {
-        I2C1_HostSendAck();
-        return I2C1_RCEN;
-    }
-    else
-    {
-        I2C1_Status.bufferFree = true;
-        switch(I2C1_Status.callbackTable[I2C1_DATA_COMPLETE](I2C1_Status.callbackPayload[I2C1_DATA_COMPLETE]))
+        else
         {
-            case I2C1_RESTART_WRITE:
-            case I2C1_RESTART_READ:
-                return I2C1_DO_RX_NACK_RESTART();
-            default:
-            case I2C1_CONTINUE:
-            case I2C1_STOP:
-                return I2C1_DO_RX_NACK_STOP();
+            retEventState = I2C1_EVENT_STOP();
         }
     }
+
+    return retEventState;
 }
 
-static i2c1_fsm_states_t I2C1_DO_RCEN(void)
+static i2c_host_event_states_t I2C1_EVENT_RX(void)
 {
-    I2C1_Status.addressNackCheck = 0;
-    I2C1_HostStartRx();
-    return I2C1_RX;
-}
+    i2c_host_event_states_t retEventState = I2C_STATE_RX;
 
-static i2c1_fsm_states_t I2C1_DO_TX_EMPTY(void)
-{
-    I2C1_Status.bufferFree = true;
-    switch(I2C1_Status.callbackTable[I2C1_DATA_COMPLETE](I2C1_Status.callbackPayload[I2C1_DATA_COMPLETE]))
+    if (I2C1_IsRxBufFull())
     {
-        case I2C1_RESTART_READ:
-        case I2C1_RESTART_WRITE:
-            return I2C1_DO_SEND_RESTART();
-        case I2C1_CONTINUE:
-            I2C1_HostSetIrq();
-            return I2C1_TX;
-        default:
-        case I2C1_STOP:
-            return I2C1_DO_SEND_STOP();
-    }
-}
+        if (i2c1Status.readLength > 0)
+        {
+            *i2c1Status.readPtr++ = I2C1_DataReceive();
+            i2c1Status.readLength--;
 
-static i2c1_fsm_states_t I2C1_DO_RX_EMPTY(void)
-{
-    I2C1_Status.bufferFree = true;
-    switch(I2C1_Status.callbackTable[I2C1_DATA_COMPLETE](I2C1_Status.callbackPayload[I2C1_DATA_COMPLETE]))
+        }
+
+        if (i2c1Status.readLength > 0)
+        {
+            I2C1_AckSend();
+        }
+        else
+        {
+            I2C1_RestartDisable();
+            I2C1_NackSend();
+            retEventState = I2C_STATE_STOP;
+        }
+
+    }
+    else
     {
-        case I2C1_RESTART_WRITE:
-            I2C1_HostEnableRestart();
-            return I2C1_SEND_RESTART_WRITE;
-        case I2C1_RESTART_READ:
-            I2C1_HostEnableRestart();
-            return I2C1_SEND_RESTART_READ;
-        case I2C1_CONTINUE:
-            return I2C1_RX;
-        default:
-        case I2C1_STOP:
-            if(I2C1_Status.state != I2C1_SEND_RESTART_READ)
-            {
-                I2C1_HostDisableRestart();
-            }
-            return I2C1_RESET;
+        I2C1_ReceiveEnable();
     }
+    return retEventState;
 }
 
-static i2c1_fsm_states_t I2C1_DO_SEND_RESTART_READ(void)
+static i2c_host_event_states_t I2C1_EVENT_NACK(void)
 {
-    I2C1_HostEnableRestart();
-    return I2C1_SEND_ADR_READ;
+    i2c_host_event_states_t retEventState = I2C_STATE_NACK;
+    retEventState = I2C1_EVENT_STOP();
+    return retEventState;
 }
 
-static i2c1_fsm_states_t I2C1_DO_SEND_RESTART_WRITE(void)
+static i2c_host_event_states_t I2C1_EVENT_ERROR(void)
 {
-    I2C1_HostEnableRestart();
-    return I2C1_SEND_ADR_WRITE;
+    i2c_host_event_states_t retEventState = I2C_STATE_ERROR;
+    retEventState = I2C1_EVENT_RESET();
+    return retEventState;
 }
 
-
-static i2c1_fsm_states_t I2C1_DO_SEND_RESTART(void)
+static i2c_host_event_states_t I2C1_EVENT_STOP(void)
 {
-    I2C1_HostEnableRestart();
-    return I2C1_SEND_ADR_READ;
+    I2C1_StopSend();
+    I2C1_Close();
+    return I2C_STATE_IDLE;
 }
 
-static i2c1_fsm_states_t I2C1_DO_SEND_STOP(void)
+static i2c_host_event_states_t I2C1_EVENT_RESET(void)
 {
-    I2C1_HostStop();
-    return I2C1_IDLE;
+    I2C1_BusReset();
+    i2c1Status.busy = false;
+    return I2C_STATE_IDLE;
 }
 
-static i2c1_fsm_states_t I2C1_DO_RX_ACK(void)
-{
-    I2C1_HostSendAck();
-    return I2C1_RCEN;
-}
-
-
-static i2c1_fsm_states_t I2C1_DO_RX_NACK_STOP(void)
-{
-    I2C1_HostSendNack();
-    return I2C1_SEND_STOP;
-}
-
-static i2c1_fsm_states_t I2C1_DO_RX_NACK_RESTART(void)
-{
-    I2C1_HostSendNack();
-    return I2C1_SEND_RESTART;
-}
-
-static i2c1_fsm_states_t I2C1_DO_RESET(void)
-{
-    I2C1_Status.busy = false;
-    I2C1_Status.error = I2C1_NOERR;
-    return I2C1_RESET;
-}
-static i2c1_fsm_states_t I2C1_DO_ADDRESS_NACK(void)
-{
-    I2C1_Status.addressNackCheck = 0;
-    I2C1_Status.error = I2C1_FAIL;
-    switch(I2C1_Status.callbackTable[I2C1_ADDR_NACK](I2C1_Status.callbackPayload[I2C1_ADDR_NACK]))
-    {
-        case I2C1_RESTART_READ:
-        case I2C1_RESTART_WRITE:
-            return I2C1_DO_SEND_RESTART();
-        default:
-            i2c1ErrorState = I2C_ERROR_NACK;    
-            return I2C1_DO_SEND_STOP();
-    }
-}
-
-void I2C1_BusCollisionIsr(void)
-{
-    I2C1_HostClearBusCollision();
-    I2C1_Status.state = I2C1_RESET;
-}
-
-i2c1_operations_t I2C1_CallbackReturnStop(void *funPtr)
-{
-    return I2C1_STOP;
-}
-
-i2c1_operations_t I2C1_CallbackReturnReset(void *funPtr)
-{
-    return I2C1_RESET_LINK;
-}
-
-i2c1_operations_t I2C1_CallbackRestartWrite(void *funPtr)
-{
-    return I2C1_RESTART_WRITE;
-}
-
-i2c1_operations_t I2C1_CallbackRestartRead(void *funPtr)
-{
-    return I2C1_RESTART_READ;
-}
-
-
-/* I2C1 Register Level interfaces */
-static inline bool I2C1_HostOpen(void)
-{
-    if(!SSP1CON1bits.SSPEN)
-    {
-        SSP1STAT = 0x0;
-        SSP1CON1 = 0x8;
-        SSP1CON2 = 0x0;
-        SSP1ADD = 0x9F;
-        SSP1CON1bits.SSPEN = 1;
-        return true;
-    }
-    return false;
-}
-
-static inline void I2C1_HostClose(void)
-{
-    //Disable I2C1
-    SSP1CON1bits.SSPEN = 0;
-}
-
-static inline uint8_t I2C1_HostGetRxData(void)
+/*
+ Section: Register Level Interfaces
+ */
+static uint8_t I2C1_DataReceive(void)
 {
     return SSP1BUF;
 }
 
-static inline void I2C1_HostSendTxData(uint8_t data)
+static void I2C1_DataTransmit(uint8_t data)
 {
     SSP1BUF = data;
 }
 
-static inline void I2C1_HostEnableRestart(void)
+static inline void I2C1_BusReset(void)
 {
-    SSP1CON2bits.RSEN = 1;
+    SSP1CON1bits.SSPEN = 0;
+    SSP1CON1bits.SSPEN = 1;
 }
 
-static inline void I2C1_HostDisableRestart(void)
-{
-    SSP1CON2bits.RSEN = 0;
-}
-
-static inline void I2C1_HostStartRx(void)
+static inline void I2C1_ReceiveEnable(void)
 {
     SSP1CON2bits.RCEN = 1;
 }
 
-static inline void I2C1_HostStart(void)
+static inline void I2C1_RestartEnable(void)
+{
+    SSP1CON2bits.RSEN = 1;
+}
+
+static inline void I2C1_RestartDisable(void)
+{
+    SSP1CON2bits.RSEN = 0;
+}
+
+static inline void I2C1_StartSend(void)
 {
     SSP1CON2bits.SEN = 1;
 }
 
-static inline void I2C1_HostStop(void)
+static inline void I2C1_StopSend(void)
 {
     SSP1CON2bits.PEN = 1;
 }
 
-static inline bool I2C1_HostIsNack(void)
-{
-    return SSP1CON2bits.ACKSTAT;
-}
-
-static inline void I2C1_HostSendAck(void)
+static inline void I2C1_AckSend(void)
 {
     SSP1CON2bits.ACKDT = 0;
     SSP1CON2bits.ACKEN = 1;
 }
 
-static inline void I2C1_HostSendNack(void)
+static inline void I2C1_NackSend(void)
 {
     SSP1CON2bits.ACKDT = 1;
     SSP1CON2bits.ACKEN = 1;
 }
 
-static inline void I2C1_HostClearBusCollision(void)
+static bool I2C1_IsNack(void)
 {
-    PIR3bits.BCL1IF = 0;
+    return SSP1CON2bits.ACKSTAT;
 }
 
+static bool I2C1_IsData(void)
+{
+    return (SSP1STATbits.D_nA);
+}
 
-static inline bool I2C1_HostIsRxBufFull(void)
+static bool I2C1_IsAddr(void)
+{
+    return !(SSP1STATbits.D_nA);
+}
+
+static bool I2C1_IsRxBufFull(void)
 {
     return SSP1STATbits.BF;
 }
 
-static inline void I2C1_HostEnableIrq(void)
-{
-    PIE3bits.SSP1IE = 1;
-}
-
-static inline bool I2C1_HostIsIrqEnabled(void)
-{
-    return PIE3bits.SSP1IE;
-}
-
-static inline void I2C1_HostDisableIrq(void)
-{
-    PIE3bits.SSP1IE = 0;
-}
-
-static inline void I2C1_HostClearIrq(void)
+static inline void I2C1_InterruptClear(void)
 {
     PIR3bits.SSP1IF = 0;
 }
 
-static inline void I2C1_HostSetIrq(void)
+static inline void I2C1_ErrorInterruptClear(void)
 {
-    PIR3bits.SSP1IF = 1;
+    PIR3bits.BCL1IF = 0;
 }
 
-static inline void I2C1_HostWaitForEvent(void)
+static inline void I2C1_StatusFlagsClear(void)
 {
-    while(1)
-    {
-        if(PIR3bits.SSP1IF)
-        {    
-            break;
-        }
-    }
-}
-
-static  i2c1_operations_t rdBlkRegCompleteHandler(void *ptr)
-{
-    I2C1_SetBuffer((( i2c1_buffer_t *)ptr)->data,(( i2c1_buffer_t*)ptr)->len);
-    I2C1_SetDataCompleteCallback(NULL,NULL);
-    return  I2C1_RESTART_READ;
-}
-
-/**
- Section: Driver Interface Function Definitions
-*/
-void I2C1_Initialize(void)
-{
-    SSP1STAT = 0x0;
-    SSP1CON1 = 0x8;
-    SSP1CON2 = 0x0;
-    SSP1ADD  = 0x9F;
-    SSP1CON1bits.SSPEN = 0;
-}
-
-bool I2C1_Write(uint16_t address, uint8_t *data, size_t dataLength)
-{
-    bool status = true;
-    while(!I2C1_Open((i2c1_address_t)address)); // sit here until we get the bus..
-    I2C1_SetBuffer(data,dataLength);
-    I2C1_SetAddressNackCallback(NULL,NULL); //NACK polling?
-    I2C1_HostWrite();
-    while(I2C1_BUSY == I2C1_Close());
-    return status;
-}
-
-bool I2C1_Read(uint16_t address, uint8_t *data, size_t dataLength)
-{
-    bool status = true;
-    while(!I2C1_Open((i2c1_address_t)address)); // sit here until we get the bus..
-    I2C1_SetBuffer(data,dataLength);
-    I2C1_HostRead();
-    while(I2C1_BUSY == I2C1_Close()); // sit here until finished.
-    return status;
-}
-
-bool I2C1_WriteRead(uint16_t address, uint8_t *writeData, size_t writeLength, uint8_t *readData, size_t readLength)
-{
-    bool status = true;
-    i2c1_buffer_t bufferBlock; // result is little endian
-    bufferBlock.data = readData;
-    bufferBlock.len = readLength;
-    while(!I2C1_Open((i2c1_address_t)address)); // sit here until we get the bus..
-    I2C1_SetDataCompleteCallback(rdBlkRegCompleteHandler,&bufferBlock);
-    I2C1_SetBuffer(writeData,writeLength);
-    I2C1_SetAddressNackCallback(NULL,NULL); //NACK polling?
-    I2C1_HostWrite();
-    while(I2C1_BUSY == I2C1_Close()); // sit here until finished.    
-    return status;
-}
-
-bool I2C1_TransferSetup(struct I2C_TRANSFER_SETUP *setup, uint32_t srcClkFreq)
-{
-    bool status = false;
-    return status;
-}
-
-enum I2C_ERROR I2C1_ErrorGet(void)
-{
-    return i2c1ErrorState;
-}
-
-bool I2C1_IsBusy(void)
-{
-    return I2C1_Status.inUse;
-}
-
-void I2C1_CallbackRegister(void (*handler)(void))
-{
-    I2C1_InterruptHandler = handler;
+    SSP1CON1bits.WCOL = 0;
+    SSP1CON1bits.SSPOV = 0;
 }
