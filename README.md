@@ -2,10 +2,10 @@
 
 [![MCHP](images/microchip.png)](https://www.microchip.com)
 
-# PIC18F47Q10 I2C Host Read Temperature Sensor
+# PIC18F47Q10 I2C Host Read & Write Temperature Sensor
 
 ## Objective
-This repository contains an example of bare-metal source code for I2C as described in [TB3281 - Getting Started with I2C Using MSSP on PIC18](http://ww1.microchip.com/downloads/en/Appnotes/Getting_Started_With_I2C_Using_MSSP_on%20PIC18_90003281A.pdf) document from Microchip. <!-- This link has to be updated, once the tech brief goes live! -->
+This repository contains an example of a MCC-melody configured project for I2C as described in [TB3281 - Getting Started with I2C Using MSSP on PIC18](http://ww1.microchip.com/downloads/en/Appnotes/Getting_Started_With_I2C_Using_MSSP_on%20PIC18_90003281A.pdf) document from Microchip. <!-- This link has to be updated, once the tech brief goes live! -->
 
 The PIC18F47Q10 configured in I2C Host Mode using the MSSP1 peripheral and performing write operations. This example will use the client [MCP9800](https://ww1.microchip.com/downloads/en/devicedoc/21909d.pdf), an 9-12 bit temperature sensor, addressed in 7-bit mode.
 
@@ -19,8 +19,8 @@ The PIC18F47Q10 configured in I2C Host Mode using the MSSP1 peripheral and perfo
 
 ## Software Used
 
-- MPLAB� X IDE 5.50.0 or newer [(MPLAB� X IDE 5.50)](https://www.microchip.com/en-us/development-tools-tools-and-software/mplab-x-ide?utm_source=GitHub&utm_medium=TextLink&utm_campaign=MCU8_MMTCha_MPAE_Examples&utm_content=pic18f47q10-cnano-i2c-write-dac-mcc-github)
-- MPLAB� XC8 2.32.0 or newer compiler [(MPLAB� XC8 2.32)](https://www.microchip.com/en-us/development-tools-tools-and-software/mplab-xc-compilers?utm_source=GitHub&utm_medium=TextLink&utm_campaign=MCU8_MMTCha_MPAE_Examples&utm_content=pic18f47q10-cnano-i2c-write-dac-mcc-github)
+- MPLAB® X IDE 5.50.0 or newer [(MPLAB® X IDE 5.50)](https://www.microchip.com/en-us/development-tools-tools-and-software/mplab-x-ide?utm_source=GitHub&utm_medium=TextLink&utm_campaign=MCU8_MMTCha_MPAE_Examples&utm_content=pic18f47q10-cnano-i2c-write-dac-mcc-github)
+- MPLAB® XC8 2.32.0 or newer compiler [(MPLAB® XC8 2.32)](https://www.microchip.com/en-us/development-tools-tools-and-software/mplab-xc-compilers?utm_source=GitHub&utm_medium=TextLink&utm_campaign=MCU8_MMTCha_MPAE_Examples&utm_content=pic18f47q10-cnano-i2c-write-dac-mcc-github)
 - MPLAB® Code Configurator (MCC Melody) 5.0.3 or newer [(microchip.com/mplab/mplab-code-configurator)](https://www.microchip.com/mplab/mplab-code-configurator)
 - MPLAB® Code Configurator (MCC) Device Libraries PIC10 / PIC12 / PIC16 / PIC18 MCUs 1.84.5 or newer [(microchip.com/mplab/mplab-code-configurator)](https://www.microchip.com/mplab/mplab-code-configurator)
 - Microchip PIC18F-Q Series Device Support 1.12.193 or newer [(packs.download.microchip.com/)](https://packs.download.microchip.com/)
@@ -60,7 +60,7 @@ The following configurations will be made for this project:
 
 1. Connect the board to the PC.
 
-2. Open the *pic18f47q10-cnano-i2c-r-w-temp-sens-mcc.X* project in MPLAB® X IDE.
+2. Open the *pic18f47q10-cnano-i2c-read-write-temp-sensor-mcc.X* project in MPLAB® X IDE.
 
 3. Configure the project properties:
     - Right click on the project and click *Properties*
