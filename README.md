@@ -56,6 +56,11 @@ The following configurations will be made for this project:
 |RB1 (SCL1)    | With Pull Up       |
 |RB2 (SDA1)    | With Pull Up       |
 
+The pull ups are enabled since the PICkit™ Serial I2C™ Demo Board comes without onboard pull up resistors.
+
+The following connections has to be made:  
+<br><img src="images/wiring_diagram.png" width="700">
+
 ## Operation
 
 1. Connect the board to the PC.
